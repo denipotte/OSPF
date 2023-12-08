@@ -142,4 +142,124 @@
         Observação: Nesta topologia, a interface de loopback é usada para simular o link WAN à Internet e uma LAN conectada a cada roteador. Isso é feito para permitir que essa topologia seja duplicada para fins de demonstração em roteadores que têm apenas duas interfaces Gigabit Ethernet. 
 
         ![Alt text](image-8.png)
-        
+    
+    # Modo de configuração do roteador para OSPF
+        OSPFv2 é ativado usando o comando do modo de configuração global router ospf process-id, como mostrado na janela de comando para R1. O valor process-id representa um número entre 1 e 65.535 e é selecionado pelo administrador da rede. O valor process-id é localmente significativo, o que significa que ele não precisa ter o mesmo valor nos outros roteadores OSPF para estabelecer adjacências com esses vizinhos. É considerado prática recomendada usar o mesmo process-id em todos os roteadores OSPF.
+
+        Depois de inserir o comando router ospf process-id, o roteador entra no modo de configuração do roteador, conforme indicado pelo R1(config-router)# prompt. Entre com o sintal de interrogação (? ), para ver todos os comandos disponíveis neste modo. A lista de comandos mostrada aqui foi alterada para exibir apenas os comandos relevantes para este módulo.
+
+        R1(config)# router ospf 10
+        R1(config-router)# ?
+        area                   OSPF area parameters
+        auto-cost              Calculate OSPF interface cost according to bandwidth
+        default-information    Control distribution of default information
+        distance               Define an administrative distance
+        exit                   Exit from routing protocol configuration mode
+        log-adjacency-changes  Log changes in adjacency state
+        neighbor               Specify a neighbor router
+        network                Enable routing on an IP network
+        no                     Negate a command or set its defaults
+        passive-interface      Suppress routing updates on an interface
+        redistribute           Redistribute information from another routing protocol
+        router-id              router-id for this OSPF process
+        R1(config-router)#
+
+    # IDs do roteador
+        Um ID de roteador OSPF é um valor de 32 bits, representado como um endereço IPv4. O ID do roteador é usado para identificar exclusivamente um roteador OSPF. Todos os pacotes OSPF incluem o ID do roteador de origem. Cada roteador requer uma ID de roteador para participar de um domínio OSPF. A ID do roteador pode ser definida por um administrador ou atribuída automaticamente pelo roteador. O ID do roteador é usado por um roteador habilitado para OSPF para fazer o seguinte:
+
+        Participar da sincronização de bancos de dados OSPF — Durante o estado do Exchange, o roteador com o ID de roteador mais alto enviará seus pacotes de descritor de banco de dados (DBD) primeiro.
+        Participar da eleição do roteador designado (DR) - Em um ambiente LAN multiacesso, o roteador com o ID de roteador mais alto é eleito o DR. O dispositivo de roteamento com o segundo ID de roteador mais alto é eleito o roteador designado de backup (BDR).
+        Observação: O processo eleitoral de DR e BDR é discutido com mais detalhes mais adiante neste módulo.
+
+    # Ordem de precedência da ID do roteador
+        Mas como o roteador determina a ID do roteador? Como ilustrado na figura, os roteadores Cisco derivam a ID do roteador com base em um dos três critérios, na seguinte ordem preferencial:
+
+        - O ID do roteador é configurado explicitamente usando o comando do modo de configuração do roteador OSPF router-id rid . O valor rid é qualquer valor de 32 bits expresso como um endereço IPv4. Este é o método recomendado para atribuir uma ID do roteador.
+        - Se a ID do roteador não for configurada explicitamente, o roteador escolhe o maior endereço IPv4 de qualquer interface de loopback configurada. Essa é a melhor alternativa para atribuir uma ID do roteador.
+        - Se nenhuma interface de loopback estiver configurada, o roteador escolhe o maior endereço IPv4 ativo de algumas das suas interfaces físicas. Esse é o método menos recomendado, pois, para os administradores, isso dificulta a diferenciação entre roteadores específicos.
+
+        ![Alt text](image-9.png)
+
+    # Configurar uma interface de loopback como o ID do roteador
+        Na topologia de referência, somente as interfaces físicas são configuradas e ativas. As interfaces de loopback não foram configuradas. Quando o roteamento OSPF está habilitado no roteador, os roteadores escolhem o seguinte endereço IPv4 mais ativo configurado como o ID do roteador.
+
+        R1: 10.1.1.14 (G0/0/1)
+        R2: 10.1.1.9 (G0/0/1)
+        R3: 10.1.1.13 (G0/0/0)
+        Observação:O OSPF não precisa ser habilitado em uma interface para que essa interface seja escolhida como o ID do roteador.
+        Em vez de depender da interface física, o ID do roteador pode ser atribuído a uma interface de loopback. Normalmente, o endereço IPv4 para esse tipo de interface de loopback deve ser configurado usando uma máscara de sub-rede de 32 bits (255.255.255.255). Isso cria efetivamente uma rota de host. Uma rota de host de 32 bits não seria anunciada como uma rota para outros roteadores OSPF.
+        O exemplo mostra como configurar uma interface de loopback em R1. Assumindo que o ID do roteador não foi explicitamente configurado ou aprendido anteriormente, o R1 usará o endereço IPv4 1.1.1.1 como ID do roteador. Suponha que R1 ainda não tenha aprendido um ID de roteador.
+
+        R1(config-if)# interface Loopback 1
+        R1(config-if)# ip address 1.1.1.1 255.255.255.255
+        R1(config-if)# end
+        R1# show ip protocols | include Router ID
+        Router ID 1.1.1.1
+        R1#
+
+    # Configurar explicitamente um ID de roteador
+        Na figura, a topologia foi atualizada para mostrar o ID do roteador para cada roteador:
+        R1 usa o ID do roteador 1.1.1.1
+        R2 usa o ID do roteador 2.2.2.2
+        R3 usa o ID do roteador 3.3.3.3
+
+        ![Alt text](image-10.png)
+
+        Use o comando router-id rid router no modo de configuração, para atribuir manualmente um ID de roteador. No exemplo, o ID do roteador 1.1.1.1 é atribuído ao R1. Use o comando show ip protocols para verificar o ID do roteador.
+
+        R1(config)# router ospf 10
+        R1(config-router)# router-id 1.1.1.1
+        R1(config-router)# end
+        *May 23 19:33:42.689: %SYS-5-CONFIG_I: Configured from console by console
+        R1# show ip protocols | include Router ID
+        Router ID 1.1.1.1
+        R1#
+
+    # Modificar uma identificação de roteador
+        Depois que um roteador seleciona um ID de roteador, um roteador OSPF ativo não permite que o ID do roteador seja alterado até que o roteador seja recarregado ou o processo OSPF seja redefinido.
+        Por exemplo, para R1, o ID do roteador configurado foi removido e o roteador recarregado. Observe que o ID do roteador atual é 10.10.1.1, que é o endereço IPv4 Loopback 0. A ID do roteador deve ser 1.1.1.1. Portanto, R1 é configurado com o comando router-id 1.1.1.1.
+        Observe como uma mensagem informativa aparece informando que o processo OSPF deve ser limpo ou que o roteador deve ser recarregado. O motivo é que o R1 já possui adjacências com outros vizinhos usando o ID do roteador 10.10.1.1. Essas adjacências devem ser renegociadas usando a nova ID do roteador 1.1.1.1. Use o comando clear ip ospf process para redefinir as adjacências. Em seguida, você pode verificar se o R1 está usando o novo comando ID do roteador com o comando show ip protocols canalizado para exibir somente a seção ID do roteador.
+        O método preferencial é apagar o processo do OSPF para redefinir a ID do roteador.
+
+        R1# show ip protocols | include Router ID
+        Router ID 10.10.1.1
+        R1# conf t
+        Enter configuration commands, one per line.  End with CNTL/Z.
+        R1(config)# router ospf 10 
+        R1(config-router)# router-id 1.1.1.1
+        % OSPF: Reload or use "clear ip ospf process" command, for this to take effect
+        R1(config-router)# end
+        R1# clear ip ospf process
+        Reset ALL OSPF processes? [no]: y
+        *Jun  6 01:09:46.975: %OSPF-5-ADJCHG: Process 10, Nbr 3.3.3.3 on GigabitEthernet0/0/1 from FULL to DOWN, Neighbor Down: Interface down or detached
+        *Jun  6 01:09:46.975: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from FULL to DOWN, Neighbor Down: Interface down or detached
+        *Jun  6 01:09:46.981: %OSPF-5-ADJCHG: Process 10, Nbr 3.3.3.3 on GigabitEthernet0/0/1 from LOADING to FULL, Loading Done
+        *Jun  6 01:09:46.981: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from LOADING to FULL, Loading Done
+        R1# show ip protocols | include Router ID
+        Router ID 1.1.1.1
+        R1#
+
+        Observação: O comando router-id é o método preferido. No entanto, algumas versões mais antigas do IOS não reconhecem o comando router-id; portanto, a melhor maneira de definir o ID do roteador nesses roteadores é usando uma interface de loopback.
+
+    
+    # Redes OSPF ponto a ponto
+        A sintaxe do comando de rede
+        Um tipo de rede que usa OSPF é a rede ponto a ponto. Você pode especificar as interfaces que pertencem a uma rede ponto a ponto configurando o comando network. Você também pode configurar o OSPF diretamente na interface com o comando ip ospf, como veremos mais tarde.
+
+        Ambos os comandos são usados para determinar quais interfaces participam do processo de roteamento para uma área OSPFv2. A sintaxe básica para o comando network é a seguinte:
+
+        Router(config-router)# network network-address wildcard-mask area area-id
+
+        A sintaxe de máscara curinga do endereço de rede é usada para ativar o OSPF nas interfaces. network comandos de estão habilitados para enviar e receber pacotes OSPF.
+        A sintaxe da área de identificação de área refere-se à área OSPF. area o comando network deve ser configurado com o mesmo valor area-id em todos os roteadores. Embora qualquer ID de área possa ser usado, é recomendado usar uma ID de área 0 com o OSPFv2 de área única. Essa convenção facilita uma posterior alteração da rede para compatibilidade com o OSPFv2 multiáreas.
+
+    # A máscara curinga
+        A máscara curinga geralmente é o inverso da máscara de sub-rede configurada nessa interface. Em uma máscara de sub-rede, o binário 1 é igual a uma correspondência e o binário 0 não é uma correspondência. Em uma máscara curinga, o inverso é verdadeiro, como mostrado aqui:
+
+        - Máscara curinga bit 0 - Corresponde ao valor de bit correspondente no endereço.
+        - Máscara curinga bit 1 - Ignora o valor do bit correspondente no endereço.
+
+        O método mais fácil para calcular uma máscara curinga é subtrair a máscara de sub-rede da rede de 255.255.255.255, conforme mostrado nas máscaras de sub-rede / 24 e / 26 da figura.
+        O gráfico mostra os cálculos de máscara curinga para duas máscaras de sub-rede fornecidas. Mostrado primeiro é o cálculo de uma máscara curinga para / 24. Escrito no topo é 255.255.255.255. A máscara de sub-rede de 255.255.255.0 é subtraída abaixo, resultando em uma máscara curinga de 0.0.255. A seguir é mostrado o cálculo de uma máscara curinga para /26. Escrito no topo é 255.255.255.255. A máscara de sub-rede de 255.255.255.192 é subtraída abaixo, resultando em uma máscara curinga de 0.0.0.63.
+
+    
