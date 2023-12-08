@@ -287,3 +287,45 @@
         R1(config-router)# network 10.1.1.14 0.0.0.0 area 0
         R1(config-router)#
         A vantagem de especificar a interface é que o cálculo da máscara curinga não é necessário. Observe que em todos os casos, o area argumento especifica a área 0.
+    
+
+    # Configurar o OSPF Usando o comando ip ospf
+       Você também pode configurar o OSPF diretamente na interface em vez de usar o comando network. Para configurar o OSPF diretamente na interface, use o comando ip ospf interface configuration mode. A sintaxe é a seguinte:
+
+        Router(config-if)# ip ospf process-id area area-id
+        Para R1, remova os comandos de rede usando esta forma no dos comandos network. E, em seguida, vá para cada interface e configure o comando ip ospf, como mostrado na janela de comando.
+
+        R1(config)# router ospf 10
+        R1(config-router)# no network 10.10.1.1 0.0.0.0 area 0
+        R1(config-router)# no network 10.1.1.5 0.0.0.0 area 0
+        R1(config-router)# no network 10.1.1.14 0.0.0.0 area 0
+        R1(config-router)# interface GigabitEthernet 0/0/0
+        R1(config-if)# ip ospf 10 area 0
+        R1(config-if)# interface GigabitEthernet 0/0/1 
+        R1(config-if)# ip ospf 10 area 0
+        R1(config-if)# interface Loopback 0
+        R1(config-if)# ip ospf 10 area 0
+        R1(config-if)# 
+
+    # Interface Passiva
+        Por padrão, as mensagens OSPF são encaminhadas para todas as interfaces com OSPF. No entanto, essas mensagens realmente precisam ser enviadas apenas para interfaces conectadas a outros roteadores habilitados para OSPF.
+        Consulte a topologia na figura. As mensagens OSPFv2 são encaminhadas pelas três interfaces de loopback, embora nenhum vizinho OSPFv2 exista nessas LANs simuladas. Em uma rede de produção, esses loopbacks seriam interfaces físicas para redes com usuários e tráfego. O envio de mensagens desnecessárias em uma LAN afeta a rede de três maneiras, da seguinte maneira:
+        Uso ineficiente da largura de banda - A largura de banda disponível é consumida transportando mensagens desnecessárias.
+        Uso ineficiente de recursos - Todos os dispositivos na LAN devem processar e, eventualmente, descartar a mensagem.
+        Aumento do risco de segurança - Sem configurações de segurança OSPF adicionais, as mensagens OSPF podem ser interceptadas com software de detecção de pacotes. As atualizações de roteamento podem ser modificadas e enviada de volta ao roteador, o que corrompe a tabela de roteamento com métricas falsas que desorientam o tráfego.
+
+        ![Alt text](image-13.png)
+
+    # Configurar interfaces passivas
+        Use o comando do modo de configuração do roteador passive-interface impedir a transmissão de mensagens de roteamento por meio de uma interface de roteador, mas ainda permitir que essa rede seja anunciada para outros roteadores. O exemplo de configuração identifica a interface R1 Loopback 0/0/0 como passiva.
+
+        O comando show ip protocols é então usado para verificar se a interface Loopback 0 está listada como passiva. A interface ainda está listada no título "Roteamento em interfaces configuradas explicitamente (área 0)", o que significa que essa rede ainda está incluída como uma entrada de rota nas atualizações do OSPFv2 enviadas para R2 e R3.
+
+        # Configurar todas as interfaces como passivas com um comando
+            R3(config)#router ospf 10
+            R3(config-router)#passive-interface default
+
+        # Verificar a configuração das interfaces
+            show ip protocols
+
+            
