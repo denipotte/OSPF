@@ -328,4 +328,289 @@
         # Verificar a configuração das interfaces
             show ip protocols
 
-            
+    
+    # Redes ponto a ponto OSPF
+        Por padrão, os roteadores Cisco elegem um DR e BDR em interfaces Ethernet, mesmo que haja apenas um outro dispositivo no link. Você pode verificar isso com o comando show ip ospf interface, como mostrado no exemplo para G0/0/0 de R1
+        R1 é o BDR e R2 é o DR. O processo de eleição DR/ BDR é desnecessário, pois só pode haver dois roteadores na rede ponto a ponto entre R1 e R2. Observe na saída que o roteador designou o tipo de rede como BROOD. Para alterar isso para uma rede ponto-a-ponto, use o comando de configuração de interface ip ospf network point-to-point em todas as interfaces nas quais você deseja desativar o processo de eleição DR/BDR. O exemplo abaixo mostra essa configuração para R1. O status de adjacência do vizinho OSPF ficará inativo por alguns milissegundos.
+
+        R1(config)# interface GigabitEthernet 0/0/0
+        R1(config-if)# ip ospf network point-to-point
+
+        R1(config-if)# interface GigabitEthernet 0/0/1
+        R1(config-if)# ip ospf network point-to-point 
+
+        Observe que a interface Gigabit Ethernet 0/0/0 agora lista o tipo de rede como POINT_TO_POINT e que não há DR ou BDR no link.
+
+        Usamos loopbacks para fornecer interfaces adicionais para uma variedade de propósitos. Neste caso, estamos usando loopbacks para simular mais redes do que o equipamento pode suportar. Por padrão, as interfaces de loopback são anunciadas como rotas de host /32. Por exemplo, R1 anunciaria a rede 10.10.1.0/24 como 10.10.1.1/32 para R2 e R3.
+
+        R2# show ip route | include 10.10.1 
+        O        10.10.1.1/32 [110/2] via 10.1.1.5, 00:03:05, GigabitEthernet0/0/0
+        
+        Para simular uma LAN real, a interface Loopback 0 é configurada como uma rede ponto a ponto para que R1 anuncie a rede 10.10.1.0/24 completa para R2 e R3.
+        R1(config-if)# interface Loopback 0
+        R1(config-if)# ip ospf network point-to-point
+
+        Agora R2 recebe o endereço de rede LAN mais preciso e simulado de 10.10.1.0/24.
+        R2# show ip route | include 10.10.1
+        O        10.10.1.0/24 [110/2] via 10.1.1.5, 00:00:30, GigabitEthernet0/0/0
+
+
+
+    # Redes OSPF de multiacesso
+        Tipos de rede OSPF
+        Outro tipo de rede que usa OSPF é a rede OSPF multiacesso. As redes OSPF multiacesso são exclusivas, pois um roteador controla a distribuição de LSAs. O roteador que é eleito para essa função deve ser determinado pelo administrador de rede por meio da configuração adequada.
+        O OSPF pode incluir processos adicionais dependendo do tipo de rede. A topologia anterior usava links ponto-a-ponto entre os roteadores. No entanto, os roteadores podem ser conectados ao mesmo switch para formar uma rede multiacesso, como mostrado na figura. As LANs Ethernet são o exemplo mais comum de redes multiacesso de broadcast. Nas redes de broadcast, todos os dispositivos na rede enxergam todas as transmissões e quadros multicast.
+
+        ![Alt text](image-14.png)
+
+    # Roteador Designado de OSPF
+        Lembre-se de que, em redes multiacesso, o OSPF elege um DR e BDR como uma solução para gerenciar o número de adjacências e a inundação de anúncios de estado de link (LSAs). A DR é responsável pela coleta e distribuição de LSAs enviadas e recebidas. O DR usa o endereço IPv4 multicast 224.0.0.5, destinado a todos os roteadores OSPF.
+        Um BDR também é eleito em caso de falha do DR. O BDR escuta passivamente e mantém um relacionamento com todos os roteadores. Se o DR parar de produzir de pacotes de Hello, o BDR promove-se e assume a função do DR.
+        Todos os outros roteadores se tornam DROTHER (um roteador que não é o DR nem o BDR). Os DROthers usam o endereço de multiacesso 224.0.0.6 (todos os roteadores designados) para enviar pacotes OSPF para DR e BDR. Somente o DR e o BDR escutam para 224.0.0.6.
+        Na figura, R1, R5 e R4 são DROthers. Clique em jogar para ver a animação de R2 atuando como DR. Observe que somente o DR e o BDR processam o LSA enviado por R1 usando o endereço IPv4 multicast 224.0.0.6. Em seguida, o DR envia o LSA para todos os roteadores OSPF usando o endereço IPv4 multicast 224.0.0.5.
+
+        ![Alt text](image-15.png)
+
+    # Topologia de referência de multiacesso OSPF
+        Na topologia de multiacesso mostrada na figura, há três roteadores interconectados em uma rede comum de multiacesso Ethernet, 192.168.1.0/24. Cada roteador é configurado com o endereço IPv4 indicado na interface Gigabit Ethernet 0/0/0.
+        Como os roteadores estão conectados por uma rede comum de multiacesso, o OSPF elegeu automaticamente um DR e BDR. Neste exemplo, R3 foi eleito como o DR como o ID do roteador é 3.3.3.3, que é o mais alto em essa rede. O R2 é o BDR porque tem o segundo maior ID de roteador na rede.    
+
+        ![Alt text](image-16.png)
+
+    
+    # Verificar funções de roteador OSPF
+       Para verificar as funções do roteador OSPFv2, use o comando show ip ospf interface.
+
+       R1 DROTHER
+
+        A saída gerada por R1 confirma que o seguinte:
+
+        R1 não é o DR ou o BDR, mas é um DROTHER com a prioridade padrão de 1. (Linha 7)
+        O DR é o R3 com a ID do roteador 3.3.3.3 no endereço IPv4 192.168.1.3, enquanto o BDR é o R2 com a ID do roteador 2.2.2.2 no endereço IPv4 192.168.1.2. (Linhas 8 e 9)
+        R1 tem duas áreas: uma com o BDR e uma com DR. (Linhas 20-22)
+        R1# show ip ospf interface GigabitEthernet 0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 192.168.1.1/24, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 1.1.1.1, Network Type BROADCAST, Cost: 1
+        Topology-MTID Cost Disabled Shutdown Topology Name
+                0 1 no no Base
+        Ativado pela configuração da interface, incluindo endereços IP secundários
+        O atraso de transmissão é de 1 seg, DROTHER de estado, Roteador designado (ID) da Prioridade 1 3.3.3, endereço de interface 192.168.1.3
+        Roteador Designado de Backup (ID) 2.2.2.2, Endereço de Interface 192.168.1.2
+        Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5
+            oob-resync timeout 40
+            Olá devido em 00:00:07
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/1/1, flood queue length 0
+        Next 0x0(0)/0x0(0)/0x0(0)
+        Last flood scan length is 0, maximum is 1
+        Last flood scan time is 0 msec, maximum is 1 msec
+        Neighbor Count is 2, Adjacent neighbor count is 2 
+            Adjacent with neighbor 2.2.2.2 (Backup Designated Router)
+            Adjacent with neighbor 3.3.3.3 (Designated Router)
+        Suppress hello for 0 neighbor(s)
+        R1#
+
+        R2 BDR
+
+        A saída gerada por R2 confirma que:
+
+        R2 é o BDR com a prioridade padrão de 1. (Linha 7)
+        O DR é o R3 com a ID do roteador 3.3.3.3 no endereço IPv4 192.168.1.3, enquanto o BDR é o R2 com a ID do roteador 2.2.2.2 no endereço IPv4 192.168.1.2. (Linhas 8 e 9)
+        R2 tem duas adjacências; um com um vizinho com ID do roteador 1.1.1.1 (R1) e outro com o DR. (Linhas 20-22)
+        R2# show ip ospf interface GigabitEthernet 0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Endereço Internet 192.168.1.2/24, Área 0, Anexado via Ativação de Interface
+        Process ID 10, Router ID 2.2.2.2, Network Type BROADCAST, Cost: 1
+        Topology-MTID Cost Disabled Shutdown Topology Name
+                0 1 no no Base
+        Ativado pela configuração da interface, incluindo endereços IP secundários
+        O atraso de transmissão é de 1 seg, BDR de estado, Roteador Designado (ID) da Prioridade 1 3.3.3, Endereço de interface 192.168.1.3
+        Roteador Designado de Backup (ID) 2.2.2.2, Endereço de Interface 192.168.1.2
+        Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5
+            oob-resync timeout 40
+            Hello due in 00:00:01
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/1, flood queue length 0
+        Next 0x0(0)/0x0(0)
+        Last flood scan length is 0, maximum is 1
+        Last flood scan time is 0 msec, maximum is 0 msec
+        Neighbor Count is 2, Adjacent neighbor count is 2 
+            Adjacent with neighbor 1.1.1.1
+            Adjacent with neighbor 3.3.3.3 (Designated Router)
+        Suppress hello for 0 neighbor(s)
+        R2#
+
+        R3 DR
+
+        A saída gerada por R3 confirma que:
+
+        R3 é o DR com a prioridade padrão de 1. (Linha 7)
+        O DR é o R3 com a ID do roteador 3.3.3.3 no endereço IPv4 192.168.1.3, enquanto o BDR é o R2 com a ID do roteador 2.2.2.2 no endereço IPv4 192.168.1.2. (Linhas 8 e 9)
+        R3 tem duas adjacências; um com um vizinho com ID do roteador 1.1.1.1 (R1) e outro com o BDR. (Linhas 20-22)
+        R3# show ip ospf interface GigabitEthernet 0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 192.168.1.3/24, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 3.3.3.3, Network Type BROADCAST, Cost: 1
+        Topology-MTID Cost Disabled Shutdown Topology Name
+                0 1 no no Base
+        Ativado pela configuração da interface, incluindo endereços IP secundários
+        O atraso de transmissão é de 1 seg, DR de estado, Roteador designado (ID) da prioridade 1 3.3.3.3, endereço de interface 192.168.1.3
+        Roteador Designado de Backup (ID) 2.2.2.2, Endereço de Interface 192.168.1.2
+        Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5
+            oob-resync timeout 40
+            Hello due in 00:00:06
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/1/1, flood queue length 0
+        Next 0x0(0)/0x0(0)/0x0(0)
+        Last flood scan length is 2, maximum is 2
+        Last flood scan time is 0 msec, maximum is 0 msec
+        Neighbor Count is 2, Adjacent neighbor count is 2 
+            Adjacent with neighbor 1.1.1.1
+            Adjacent with neighbor 2.2.2.2 (Backup Designated Router)
+        Suppress hello for 0 neighbor(s)
+        R3#
+
+
+    # Verifique as adjacências de DR / BDR
+        Para verificar as adjacências OSPFv2, use o comando show ip ospf neighbor, como mostrado no exemplo para R1. O estado dos vizinhos nas redes multiacesso pode ser o seguinte:
+        FULL/DROTHER -Este é um roteador DR ou BDR totalmente adjacente a um roteador que não seja DR ou BDR. Esses dois vizinhos podem trocar pacotes Hello, atualizações, consultas, respostas e confirmações.
+        FULL/DR - O roteador é totalmente adjacente ao vizinho DR indicado. Esses dois vizinhos podem trocar pacotes Hello, atualizações, consultas, respostas e confirmações.
+        FULL/BDR - O roteador é totalmente adjacente ao vizinho BDR indicado. Esses dois vizinhos podem trocar pacotes Hello, atualizações, consultas, respostas e confirmações.
+        2-WAY/DROTHER - O roteador não DR ou BDR tem um relacionamento de vizinho com outro roteador não DR ou BDR. Estes dois pacotes trocam pacote Hello.
+        O estado normal para um roteador OSPF geralmente é FULL. Se um roteador estiver fixo em outro estado, é uma indicação de que há problemas ao formar adjacências. A única exceção a isso é o estado 2-WAY, que é normal em uma rede de transmissão de vários acessos. Por exemplo, os DROTHERs formarão uma adjacência vizinha de 2 vias com quaisquer DROTHERs que ingressarem na rede. Quando isso acontece, o estado vizinho é exibido como 2 WAY/DROTHER.
+
+
+    # Comando show ip ospf neighbor em cada roteador.
+    
+        A saída gerada pelo R1 confirma que o R1 possui adjacências com os seguintes roteadores:
+
+        R2 com a identificação do roteador 2.2.2.2 está em um estado Full e a função de R2 é BDR.
+        R3 com a identificação do roteador 3.3.3.3 está em um estado Full e a função de R3 é DR.
+        R1# show ip ospf neighbor 
+        Neighbor ID Pri State Dead Time Address Interface
+        2.2.2.2 1 FULL/BDR 00:00:31 192.168.1.2 GigabitEthernet0/0/0
+        3.3.3.3 1 FULL/DR 00:00:39 192.168.1.3 GigabitEthernet0/0/0
+        R1#
+
+
+        A saída gerada pelo R2 confirma que o R2 possui adjacências com os seguintes roteadores:
+
+        R1 com uma identificação do roteador 1.1.1.1 está em um estado Full e R1 não é DR nem BDR.
+        R3 com a identificação do roteador 3.3.3.3 está em um estado Full e a função de R3 é DR.
+        R2# show ip ospf neighbor 
+        Neighbor ID Pri State Dead Time Address Interface
+        1.1.1.1 1 FULL/DROTHER 00:00:31 192.168.1.1 GigabitEthernet0/0/0
+        3.3.3.3 1 FULL/DR 00:00:34 192.168.1.3 GigabitEthernet0/0/0
+        R2#
+
+
+        A saída gerada pelo R3 confirma que o R3 possui adjacências com os seguintes roteadores:
+
+        R1 com uma identificação do roteador 1.1.1.1 está em um estado Full e R1 não é DR nem BDR.
+        R2 com a identificação do roteador 2.2.2.2 está em um estado Full e a função de R2 é BDR.
+        R3# show ip ospf neighbor 
+        Neighbor ID Pri State Dead Time Address Interface
+        1.1.1.1 1 FULL/DROTHER 00:00:37 192.168.1.1 GigabitEthernet0/0/0
+        2.2.2.2 1 FULL/BDR 00:00:33 192.168.1.2 GigabitEthernet0/0/0
+        R3#
+
+    
+    # Processo de Eleição do DR/BDR Padrão
+        Como o DR e o BDR são eleitos? A decisão da eleição do DR e do BDR do OSPF é baseada nos seguintes critérios, em ordem sequencial:
+
+        Os roteadores na rede elegem o roteador com a prioridade mais alta de interface como o DR. O roteador com a segunda prioridade mais alta da interface é eleito como o BDR. A prioridade pode ser configurada para ser qualquer número entre 0 e 255. Se o valor da prioridade da interface for definido como 0, essa interface não poderá ser escolhida como DR nem BDR. A prioridade padrão de interfaces multiacesso com broadcast é 1. Portanto, a menos que configurados de outra forma, todos os roteadores possuem um valor de prioridade igual e devem se basear em outro método de desempate durante a eleição do DR/BDR.
+        Se as prioridades da interface forem iguais, o roteador com a maior identificação de roteador será eleito como o DR. O roteador com a segunda maior identificação do roteador será o BDR.
+        Lembre-se de que o ID do roteador é determinado de uma das três maneiras a seguir:
+
+        A ID do roteador pode ser configurada manualmente.
+        Se nenhuma ID de roteador estiver configurada, a ID do roteador será determinada pelo endereço IPv4 de loopback mais alto.
+        Se nenhuma interface de loopback é configurada, o ID do roteador é determinado pelo endereço IPv4 ativo mais alto.
+
+    
+    # Topologia de referência de multiacesso OSPFv2
+
+        ![Alt text](image-17.png)
+
+
+        Na figura, todas as interfaces de roteador Ethernet têm uma prioridade padrão 1. Como resultado, com base nos critérios de seleção listados acima, o ID do roteador OSPF é usado para eleger o DR e o BDR. R3 com o maior ID do roteador torna-se o DR; e R2 com o segundo maior ID do roteador, torna-se o BDR.
+
+        O processo de eleição do DR e do BDR ocorre quando o primeiro roteador com uma interface OSPF habilitada estiver ativo na rede multiacesso. Isso pode acontecer quando os roteadores OSPF pré-configurados são ligados ou quando o OSPF é ativado na interface. O processo de eleição leva apenas alguns segundos. Se todos os roteadores na rede multiacesso não tiverem terminado a reinicialização, é possível que um ID do roteador mais baixo se torne o DR.
+
+        As eleições de DR e BDR do OSPF não são preventivas. Se um novo roteador com uma prioridade mais alta ou um ID de roteador mais alto for adicionado à rede após a eleição do DR e do BDR, o roteador adicionado recentemente não assume o papel de DR ou BDR, porque essas funções já foram atribuídas. A adição de um novo roteador não inicia um processo de eleição novo.
+
+
+    # Falha e recuperação de DR
+        Depois que o DR foi eleito, será o DR até que ocorram um dos seguintes eventos:
+
+        O DR falhar.
+        O processo OSPF no DR falha ou é parado.
+        A interface do DR falha ou é desligada.
+        Se o DR falha, o BDR é atualizado automaticamente ao DR. Esse é o caso se outro DROTHER com um ID do roteador ou maior prioridade é adicionado à rede após a eleição inicial do DR/BDR. No entanto, depois que um BDR é promovido a DR, uma nova eleição de BDR ocorre e o DROTHER com a prioridade mais alta ou o ID do roteador é eleito como o novo BDR.
+
+    # O comando ip ospf priority
+        Se as prioridades da interface forem iguais, o roteador com a maior identificação de roteador será eleito como o DR. É possível configurar o ID do roteador para manipular a eleição do DR/BDR. No entanto, esse processo funciona apenas se houver um plano rigoroso de requisitos para definir o ID do roteador em todos os roteadores. Configurar o ID do roteador pode ajudar a controlar isso. No entanto, em grandes redes isso pode ser complicado.
+
+        Em vez de confiar no ID do roteador, é melhor gerenciar a eleição para definir prioridades de interface. Isso também permite que um roteador seja o DR em uma rede e um DROTHER em outra. Para definir a prioridade de uma interface, use o comando ip ospf priority value, onde o valor é de 0 a 255. Um valor de 0 não se torna um DR ou um BDR. Um valor de 1 a 255 na interface torna mais provável que o roteador se torne o DR ou o BDR.  
+
+
+    # Configurar a prioridade do OSPF
+        Na topologia, o comando ip ospf priority será usado para alterar o DR e BDR da seguinte forma:
+
+        R1 deve ser DR e será configurado com uma prioridade 255.
+        R2 deve ser BDR e será configurado com uma prioridade 1.
+        R3 nunca deve ser um DR ou um BDR e será configurado com uma prioridade 0.
+        Altere a prioridade da interface R1 G0/0/0 de 1 para 255.
+
+        R1(config)# interface GigabitEthernet 0/0/0 
+        R1(config-if)# ip ospf priority 255 
+        R1(config-if)# end 
+        R1#
+        Altere a prioridade da interface R3 G0/0/0 de 1 para 0.
+
+        R3(config)# interface GigabitEthernet 0/0/0
+        R3(config-if)# ip ospf priority 0
+        R3(config-if)# end
+        R3#
+        O exemplo a seguir mostra como limpar o processo de OSPF em R1. O comando clear ip ospf process também deve ser inserido em R2 e R3 (não mostrado). Observe as informações de estado OSPF que são geradas.
+
+        R1# clear ip ospf process
+        Reset ALL OSPF processes? [no]: y
+        R1#
+        *Jun  5 03:47:41.563: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from FULL to DOWN, Neighbor Down: Interface down or detached
+        *Jun  5 03:47:41.563: %OSPF-5-ADJCHG: Process 10, Nbr 3.3.3.3 on GigabitEthernet0/0/0 from FULL to DOWN, Neighbor Down: Interface down or detached
+        *Jun  5 03:47:41.569: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from LOADING to FULL, Loading Done
+        *Jun  5 03:47:41.569: %OSPF-5-ADJCHG: Process 10, Nbr 3.3.3.3 on GigabitEthernet0/0/0 from LOADING to FULL, Loading Done
+        A saída do comando show in ospf interface g0/0/0 em R1 confirma que R1 agora é o DR com uma prioridade 255 e identifica as novas adjacências vizinhas de R1.
+
+        R1# show ip ospf interface GigabitEthernet 0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 192.168.1.1/24, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 1.1.1.1, Network Type BROADCAST, Cost: 1
+        Topology-MTID    Cost    Disabled    Shutdown      Topology Name
+                0           1         no          no            Base
+        Enabled by interface config, including secondary ip addresses
+        Transmit Delay is 1 sec, State DR, Priority 255
+        Designated Router (ID) 1.1.1.1, Interface address 192.168.1.1
+        Backup Designated router (ID) 2.2.2.2, Interface address 192.168.1.2
+        Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5
+            oob-resync timeout 40
+            Hello due in 00:00:00
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/1/1, flood queue length 0
+        Next 0x0(0)/0x0(0)/0x0(0)
+        Last flood scan length is 1, maximum is 2
+        Last flood scan time is 0 msec, maximum is 1 msec
+        Neighbor Count is 2, Adjacent neighbor count is 2 
+            Adjacent with neighbor 2.2.2.2  (Backup Designated Router)
+            Adjacent with neighbor 3.3.3.3
+        Suppress hello for 0 neighbor(s)
+        R1#
