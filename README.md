@@ -262,4 +262,28 @@
         O método mais fácil para calcular uma máscara curinga é subtrair a máscara de sub-rede da rede de 255.255.255.255, conforme mostrado nas máscaras de sub-rede / 24 e / 26 da figura.
         O gráfico mostra os cálculos de máscara curinga para duas máscaras de sub-rede fornecidas. Mostrado primeiro é o cálculo de uma máscara curinga para / 24. Escrito no topo é 255.255.255.255. A máscara de sub-rede de 255.255.255.0 é subtraída abaixo, resultando em uma máscara curinga de 0.0.255. A seguir é mostrado o cálculo de uma máscara curinga para /26. Escrito no topo é 255.255.255.255. A máscara de sub-rede de 255.255.255.192 é subtraída abaixo, resultando em uma máscara curinga de 0.0.0.63.
 
-    
+        ![Alt text](image-11.png)
+
+
+    # Configurar o OSPF Usando o comando network
+        No modo de configuração de roteamento, há duas maneiras de identificar as interfaces que participarão do processo de roteamento OSPFv2. A figura mostra a topologia de referência.
+
+        ![Alt text](image-12.png)
+
+        No primeiro exemplo, a máscara curinga identifica a interface com base nos endereços de rede. Qualquer interface ativa configurada com um endereço IPv4 pertencente a essa rede participará do processo de roteamento OSPFv2.
+
+        R1(config)# router ospf 10
+        R1(config-router)# network 10.10.1.0 0.0.0.255 area 0
+        R1(config-router)# network 10.1.1.4 0.0.0.3 area 0
+        R1(config-router)# network 10.1.1.12 0.0.0.3 area 0
+        R1(config-router)#
+        Observação: Algumas versões do IOS permitem que a máscara de sub-rede seja inserida em vez da máscara curinga. O IOS converte a máscara de sub-rede para o formato da máscara curinga.
+
+        Como alternativa, o segundo exemplo mostra como o OSPFv2 pode ser habilitado especificando o endereço IPv4 exato da interface usando uma máscara curinga quad zero. Inserir network 10.1.1.5 0.0.0.0 area 0 em R1 diz ao roteador para ativar a interface Gigabit Ethernet 0/0/0 para o processo de roteamento. Como resultado, o processo OSPFv2 anunciará a rede que está nessa interface (10.1.1.4/30).
+
+        R1(config)# router ospf 10
+        R1(config-router)# network 10.10.1.1 0.0.0.0 area 0
+        R1(config-router)# network 10.1.1.5 0.0.0.0 area 0
+        R1(config-router)# network 10.1.1.14 0.0.0.0 area 0
+        R1(config-router)#
+        A vantagem de especificar a interface é que o cálculo da máscara curinga não é necessário. Observe que em todos os casos, o area argumento especifica a área 0.
