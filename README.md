@@ -920,3 +920,10 @@
             C        10.10.3.0/24 is directly connected, Loopback0
             L        10.10.3.1/32 is directly connected, Loopback0
             R3#  
+
+        # Ative a depuração de adjacência de OSPF de IP.
+            Você pode monitorar o processo de eleição do DR e do BDR com um comando debug . Em RA e RB, digite o comando a seguir.
+
+            RA# debug ip ospf adj
+
+            RB# debug ip ospf adj
