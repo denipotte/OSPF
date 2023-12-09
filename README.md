@@ -614,3 +614,138 @@
             Adjacent with neighbor 3.3.3.3
         Suppress hello for 0 neighbor(s)
         R1#
+    
+    # Modificar OSPFv2 de área única
+        Métrica de Custo do Cisco OSPF
+        Lembre-se de que um protocolo de roteamento usa uma métrica para determinar o melhor caminho de um pacote através de uma rede. Uma métrica indica a sobrecarga necessária para enviar pacotes por determinada interface. O OSPF usa o custo como métrica. Um custo menor indica um caminho melhor em vez de um custo mais alto.
+
+        O custo de uma interface da Cisco é inversamente proporcional à largura de banda da interface. Portanto, uma largura de banda maior indica um custo menor. A fórmula usada para calcular o custo do OSPF é:
+        Custo = largura de banda de refrencia / largura de banda da interface
+        A largura de banda de referência padrão é 108 (100,000,000); portanto, a fórmula é:
+        Custo = 100,000,000 bps / largura de banda da interface em bps
+        Consulte a tabela para obter uma análise detalhada do cálculo de custos. Como o valor de custo do OSPF deve ser um número inteiro, as interfaces FastEthernet, Gigabit Ethernet e 10 GigE compartilham o mesmo custo. Para corrigir esta situação, você pode:
+        Ajuste a largura de banda de referência com o comando auto-cost reference-bandwidth em cada roteador OSPF.
+        Defina manualmente o valor de custo do OSPF com o comando ip ospf cost nas interfaces necessárias.
+
+        ![Alt text](image-18.png)
+
+
+        Ajustar a largura de banda de referência
+        O valor do custo deve ser um número inteiro. Se algo menor do que um inteiro for calculado, o OSPF arredonda até o inteiro o mais próximo. Portanto, o custo OSPF atribuído a uma interface Gigabit Ethernet com a largura de banda de referência padrão de 100.000.000 bps seria igual a 1, porque o número inteiro mais próximo de 0,1 é 0 em vez de 1.
+
+        Custo = 100,000,000 bps / 1,000,000,000 = 1
+
+        Por esse motivo, todas as interfaces mais rápidas do que a Fast Ethernet terão o mesmo valor de custo de 1 como uma interface Fast Ethernet. Para auxiliar o OSPF a determinar o caminho correto, a largura de banda de referência deve ser alterada para um valor mais alto a fim de acomodar redes com links com velocidade superior a 100 Mbps.
+
+        Alterar a largura de banda de referência não afeta realmente a capacidade da largura de banda no link; em vez disso, afeta o cálculo usado para determinar a métrica. Para ajustar a largura de banda de referência, use o comando router configuration auto-cost reference-bandwidth Mbps.
+
+        Router(config-router)# auto-cost reference-bandwidth Mbps
+        Esse comando deve ser configurado em cada roteador no domínio do OSPF. Observe que o valor é expresso em Mbps; portanto, para ajustar os custos para Gigabit Ethernet, use o comando auto-cost reference-bandwidth 1000. For 10 Gigabit Ethernet, use o comando auto-cost reference-bandwidth 10000.
+
+        Para retornar à largura de banda de referência padrão, use o comando auto-cost reference-bandwidth 100.
+
+        Seja qual for o método usado, é importante aplicar a configuração a todos os roteadores no domínio de roteamento OSPF. A tabela mostra o custo do OSPF se a largura de banda de referência for ajustada para acomodar links de 10 Gigabit Ethernet. A largura de banda de referência deve ser ajustada sempre que houver links mais rápidos que o FastEthernet (100 Mbps).
+
+        ![Alt text](image-19.png)
+
+
+        Use o comando show ip ospf interface g0/0/0 para verificar o custo atual do OSPFv2 atribuído à interface R1 GigabitEthernet 0/0/0. Observe como exibe um custo de 1. Em seguida, depois de ajustar a largura de banda de referência, o custo agora é 10. Isso permitirá escalar para interfaces 10 Gigabit Ethernet no futuro sem ter que ajustar a largura de banda de referência novamente.
+
+        Observação: O comando auto-cost reference-bandwidth deve ser configurado de forma consistente em todos os roteadores no domínio OSPF para garantir cálculos precisos de rota.
+
+        R1# show ip ospf interface gigabitethernet0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 10.1.1.5/30, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 1.1.1.1, Network Type POINT_TO_POINT, Cost: 1
+        (output omitted)
+        R1# config t
+        Enter configuration commands, one per line.  End with CNTL/Z.
+        R1(config)# router ospf 10
+        R1(config-router)# auto-cost reference-bandwidth 10000
+        % OSPF: Reference bandwidth is changed.
+                Please ensure reference bandwidth is consistent across all routers.
+        R1(config-router)# do show ip ospf interface gigabitethernet0/0/0
+        GigabitEthernet0/0 is up, line protocol is up
+        Internet address is 172.16.1.1/24, Area 0
+        Process ID 10, Router ID 1.1.1.1, Network Type BROADCAST, Cost: 10
+        Transmit Delay is 1 sec, State DR, Priority 1
+        (output omitted)
+
+    
+    # OSPF acumula custos
+        O custo de uma rota OSPF é o valor acumulado de um roteador à rede de destino. Assumindo que o comando auto-cost reference-bandwidth 10000 foi configurado em todos os três roteadores, o custo dos links entre cada roteador é agora 10. As interfaces de loopback têm um custo padrão de 1, como mostrado na figura.
+
+        ![Alt text](image-20.png)
+
+        Portanto, podemos calcular o custo de cada roteador para alcançar cada rede. Por exemplo, o custo total para R1 alcançar a rede 10.10.2.0/24 é 11. Isso ocorre porque o link para o custo R2 = 10 e o custo padrão de loopback = 1. 10 + 1 = 11.
+
+        A tabela de roteamento de R1 na Figura 2 confirma que a métrica para alcançar a LAN R2 é um custo de 11.
+
+        R1# show ip route | include 10.10.2.0
+        O        10.10.2.0/24 [110/11] via 10.1.1.6, 01:05:02, GigabitEthernet0/0/0
+        R1# show ip route 10.10.2.0
+        Routing entry for 10.10.2.0/24
+        Known via "ospf 10", distance 110, metric 11, type intra area
+        Last update from 10.1.1.6 on GigabitEthernet0/0/0, 01:05:13 ago
+        Routing Descriptor Blocks:
+        * 10.1.1.6, from 2.2.2.2, 01:05:13 ago, via GigabitEthernet0/0/0
+            Route metric is 11, traffic share count is 1
+        R1#
+
+    
+    # Definir manualmente o valor de custo do OSPF
+        Os valores de custo de OSPF podem ser manipulados para influenciar a rota escolhida pelo OSPF. Por exemplo, na configuração atual, R1 é balanceamento de carga para a rede 10.1.1.8/30. Ele enviará algum tráfego para R2 e algum tráfego para R3. Você pode ver isso na tabela de roteamento.
+
+        R1# show ip route ospf | begin 10
+            10.0.0.0/8 is variably subnetted, 9 subnets, 3 masks
+        O        10.1.1.8/30 [110/20] via 10.1.1.13, 00:54:50, GigabitEthernet0/0/1
+                            [110/20] via 10.1.1.6, 00:55:14, GigabitEthernet0/0/0
+        (output omitted)
+        R1#
+        O administrador pode querer que o tráfego passe pelo R2 e use R3 como uma rota de backup no caso de o link entre R1 e R2 ficar inativo.
+
+        Outra razão para alterar o valor de custo é porque outros fornecedores podem calcular o OSPF de uma maneira diferente. Ao manipular o valor de custo, o administrador pode garantir que os custos de rota compartilhados entre roteadores de vários fornecedores OSPF sejam refletidos com precisão nas tabelas de roteamento.
+
+        Para alterar o valor de custo relatado pelo roteador OSPF local para outros roteadores OSPF, use o comando de configuração de interface ip ospf cost value. Na figura, precisamos alterar o custo das interfaces de loopback para 10 para simular velocidades Gigabit Ethernet. Além disso, alteraremos o custo do link entre R2 e R3 para 30 para que esse link seja usado como um link de backup.
+
+        topologia de rede padrão OSPFv2, conforme descrito em 2.1.1, com a adição do custo de cada link. Todos os loopbacks foram configurados com um custo de 10. Os links R1-para-R2 e R2-para-R3 também têm um custo de 10. O link R1-para-R3 tem um custo de 30.
+
+         ![Alt text](image-21.png)
+
+        O exemplo a seguir é a configuração para R1.
+
+        R1(config)# interface g0/0/1
+        R1(config-if)# ip ospf cost 30
+        R1(config-if)# interface lo0
+        R1(config-if)# ip ospf cost 10
+        R1(config-if)# end
+        R1#
+        Supondo que os custos OSPF para R2 e R3 tenham sido configurados para corresponder à topologia na figura acima, as rotas OSPF para R1 teriam os seguintes valores de custo. Observe que o R1 não está mais balanceando a carga para a rede 10.1.1.8/30. Na verdade, todas as rotas passam pelo R2 conforme desejado pelo administrador de rede.
+
+        R1# show ip route ospf | begin 10
+            10.0.0.0/8 is variably subnetted, 9 subnets, 3 masks
+        O        10.1.1.8/30 [110/20] via 10.1.1.6, 01:18:25, GigabitEthernet0/0/0
+        O        10.10.2.0/24 [110/20] via 10.1.1.6, 00:04:31, GigabitEthernet0/0/0
+        O        10.10.3.0/24 [110/30] via 10.1.1.6, 00:03:21, GigabitEthernet0/0/0
+        R1#
+        Observação: Embora o uso do comando ip ospf cost seja o método recomendado para manipular os valores de custo do OSPF, um administrador também pode fazer isso usando o comando interface configuration bandwidth kbps. No entanto, isso só funcionaria se todos os roteadores fossem roteadores Cisco.
+
+    
+    # Testar o failover para a rota de backup
+        O que acontece se o link entre R1 e R2 cair? Podemos simular isso desligando a interface Gigabit Ethernet 0/0/0 e verificando se a tabela de roteamento é atualizada para usar R3 como o roteador de próximo salto. Observe que o R1 agora pode alcançar a rede 10.1.1.4/30 através do R3 com um valor de custo de 50.
+
+        R1(config)# interface g0/0/0
+        R1(config-if)# shutdown
+        *Jun  7 03:41:34.866: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from FULL to DOWN, Neighbor Down: Interface down or detached
+        *Jun  7 03:41:36.865: %LINK-5-CHANGED: Interface GigabitEthernet0/0/0, changed state to administratively down
+        *Jun  7 03:41:37.865: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/0/0, changed state to down
+        R1(config-if)# end
+        R1# show ip route ospf | begin 10
+            10.0.0.0/8 is variably subnetted, 8 subnets, 3 masks
+        O        10.1.1.4/30 [110/50] via 10.1.1.13, 00:00:14, GigabitEthernet0/0/1
+        O        10.1.1.8/30 [110/40] via 10.1.1.13, 00:00:14, GigabitEthernet0/0/1
+        O        10.10.2.0/24 [110/50] via 10.1.1.13, 00:00:14, GigabitEthernet0/0/1
+        O        10.10.3.0/24 [110/40] via 10.1.1.13, 00:00:14, GigabitEthernet0/0/1
+        R1#
+
+        
