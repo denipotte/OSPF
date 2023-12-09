@@ -748,4 +748,175 @@
         O        10.10.3.0/24 [110/40] via 10.1.1.13, 00:00:14, GigabitEthernet0/0/1
         R1#
 
-        
+
+        # Intervalos de pacote de Hello
+            Conforme mostrado na figura, os pacotes Hello OSPFv2 são transmitidos para o endereço multicast 224.0.0.5 (todos os roteadores OSPF) a cada 10 segundos. Este é o valor de temporizador padrão em redes multiacesso e ponto a ponto.
+
+            Observação: Os pacotes de Hello não são enviados nas interfaces LAN simuladas porque essas interfaces foram definidas como passivas usando o comando passive-interface de configuração do roteador.
+
+            O intervalo dead é o tempo que o roteador aguarda para receber um pacote de Hello antes de declarar o vizinho como inativo. Se o intervalo inoperante expirar antes dos roteadores receberem um pacote Hello, o OSPF removerá esse vizinho de seu LSDB (banco de dados do estado do link). O roteador inunda o LSDB com informações sobre o vizinho inativo de todas as interfaces com OSPF. A Cisco usa um padrão de 4 vezes o intervalo Hello. São 40 segundos nas redes multiacesso e ponto a ponto.
+
+            Observação: Em redes de multiacesso sem difusão (NBMA), o intervalo de saudação padrão é 30 segundos e o intervalo inativo padrão é 120 segundos. As redes NBMA estão além do escopo deste módulo.
+
+        ![Alt text](image-22.png)
+
+    
+    # Verificar intervalos Hello e Dead
+        Os intervalos de Hello e de Dead do OSPF são configuráveis na interface. Os intervalos OSPF devem corresponder ou uma adjacência vizinha não ocorre. Para verificar os intervalos da interface OSPFv2 configurados atualmente, use o comando show ip ospf interface, como mostrado no exemplo. Os intervalos Gigabit Ethernet 0/0/0 Hello e Dead são definidos para o padrão 10 segundos e 40 segundos, respectivamente.
+
+        R1# show ip ospf interface g0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 10.1.1.5/30, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 1.1.1.1, Network Type POINT_TO_POINT, Cost: 10
+        Topology-MTID    Cost    Disabled    Shutdown      Topology Name
+                0           10        no          no            Base
+        Enabled by interface config, including secondary ip addresses
+        Transmit Delay is 1 sec, State POINT_TO_POINT
+        Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5
+            oob-resync timeout 40
+            Hello due in 00:00:06
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/2/2, flood queue length 0
+        Next 0x0(0)/0x0(0)/0x0(0)
+        Last flood scan length is 1, maximum is 1
+        Last flood scan time is 0 msec, maximum is 0 msec
+        Neighbor Count is 1, Adjacent neighbor count is 1 
+            Adjacent with neighbor 2.2.2.2
+        Suppress hello for 0 neighbor(s)
+        R1#
+        Use o comando show ip ospf neighbor para ver a contagem regressiva de tempo inativo de 40 segundos, como mostrado no exemplo a seguir. Por padrão, esse valor é atualizado a cada 10 segundos quando o R1 recebe um Hello do vizinho.
+
+        R1# show ip ospf neighbor 
+        Neighbor ID     Pri   State           Dead Time   Address         Interface
+        3.3.3.3           0   FULL/  -        00:00:35    10.1.1.13       GigabitEthernet0/0/1
+        2.2.2.2           0   FULL/  -        00:00:31    10.1.1.6        GigabitEthernet0/0/0
+        R1#
+
+
+    # Modificar intervalos OSPFv2
+        Pode ser conveniente alterar os temporizadores OSPF de modo que os roteadores detectem falhas de rede em menos tempo. Isso aumenta o tráfego, mas às vezes a necessidade de convergência rápida é mais importante do que o tráfego extra que ele cria.
+
+        Observação: Os intervalos Hello e Dead padrão são baseados nas práticas recomendadas e só devem ser alterados em situações raras.
+
+        Os intervalos de Hello e Dead de OSPFv2 podem ser modificados manualmente usando os seguintes comandos de modo de configuração de interface:
+
+        Router(config-if)# ip ospf hello-interval seconds
+        Router(config-if)# ip ospf dead-interval seconds
+        Use os comandos no ip ospf hello-interval e no ip ospf dead-interval para redefinir os intervalos para seu padrão.
+
+        No exemplo, o intervalo de saudação para o link entre R1 e R2 é alterado para 5 segundos. Imediatamente depois de alterar o intervalo de Hello, o IOS Cisco modifica automaticamente o intervalo de Dead para quatro vezes o intervalo de Hello. No entanto, você pode documentar o novo intervalo inativo na configuração definindo-o manualmente para 20 segundos, conforme mostrado.
+
+        Conforme exibido pela mensagem de adjacência OSPFv2 destacada, quando o temporizador morto em R1 expira, R1 e R2 perdem a adjacência. O motivo é porque o R1 e R2 devem ser configurados com o mesmo intervalo de saudação. Use o comando show ip ospf neighbor no R1 para verificar as adjacências vizinhas. Observe que o único vizinho listado é o roteador de 3.3.3.3 (R3) e que R1 não é mais adjacente com o vizinho de 2.2.2.2 (R2).
+
+        R1(config)# interface g0/0/0 
+        R1(config-if)# ip ospf hello-interval 5 
+        R1(config-if)# ip ospf dead-interval 20 
+        R1(config-if)# 
+        *Jun  7 04:56:07.571: %OSPF-5-ADJCHG: Process 10, Nbr 2.2.2.2 on GigabitEthernet0/0/0 from FULL to DOWN, Neighbor Down: Dead timer expired 
+        R1(config-if)# end 
+        R1# show ip ospf neighbor 
+        Neighbor ID     Pri   State           Dead Time   Address         Interface
+        3.3.3.3           0   FULL/  -        00:00:37    10.1.1.13       GigabitEthernet0/0/1
+        R1#
+        Para restaurar a adjacência entre R1 e R2, o intervalo Hello da interface R2 Gigabit Ethernet 0/0/0 é definido como 5 segundos, conforme mostrado no exemplo a seguir. Quase imediatamente, o IOS exibe uma mensagem informando que a adjacência foi estabelecida com um estado de FULL. Verifique os intervalos da interface usando o comando show ip ospf interface. Observe que o tempo de Hello é de 5 segundos e o tempo de Dead foi automaticamente definido como 20 segundos, em vez do padrão de 40 segundos.
+
+        R2(config)# interface g0/0/0
+        R2(config-if)# ip ospf hello-interval 5
+        *Jun  7 15:08:30.211: %OSPF-5-ADJCHG: Process 10, Nbr 1.1.1.1 on GigabitEthernet0/0/0 from LOADING to FULL, Loading Done
+        R2(config-if)# end
+        R2# show ip ospf interface g0/0/0 | include Timer
+        Timer intervals configured, Hello 5, Dead 20, Wait 20, Retransmit 5
+        R2# show ip ospf neighbor
+        Neighbor ID     Pri   State           Dead Time   Address         Interface
+        3.3.3.3           0   FULL/  -        00:00:38    10.1.1.10       GigabitEthernet0/0/1
+        1.1.1.1           0   FULL/  -        00:00:17    10.1.1.5        GigabitEthernet0/0/0
+        R2#
+
+    
+
+    # Propagar uma rota estática padrão no OSPFv2
+        Os usuários da rede precisarão enviar pacotes fora da rede para redes não OSPF, como a Internet. Aqui é onde você precisará ter uma rota estática padrão que eles podem usar. Na topologia na figura, R2 está conectado à Internet e deve propagar uma rota padrão para R1 e R3. O roteador conectado à internet às vezes é chamado de roteador de borda ou roteador de gateway. No entanto, na terminologia OSPF, o roteador localizado entre um domínio de roteamento OSPF e uma rede não OSPF é chamado de ASBR (Autonomous System Limite Router).
+
+        ![Alt text](image-23.png)
+
+        Tudo o que é necessário para o R2 chegar à Internet é uma rota estática padrão para o provedor de serviços.
+
+        Observação: Neste exemplo, uma interface de loopback com endereço IPv4 64.100.0.1 é usada para simular a conexão com o provedor de serviços.
+
+        Para propagar uma rota padrão, o roteador de borda (R2) deve ser configurado com o seguinte:
+
+        Uma rota estática padrão usando o comando ip route 0.0.0.0 0.0.0.0 [next-hop-address | exit-intf].
+        O comando de configuração do roteador de default-information originate. Isso instrui o R2 para ser a origem das informações da rota padrão e propagar a rota estática padrão em atualizações de OSPF.
+        No exemplo a seguir, R2 é configurado com um loopback para simular uma conexão com a internet. Em seguida, uma rota padrão é configurada e propagada para todos os outros roteadores OSPF no domínio de roteamento.
+
+        Observação: Ao configurar rotas estáticas, a prática recomendada é usar o endereço IP do próximo salto. No entanto, ao simular uma conexão com a internet, não há nenhum endereço IP do próximo salto. Portanto, usamos o argumento exit-intf
+
+        R2(config)# interface lo1
+        R2(config-if)# ip address 64.100.0.1 255.255.255.252 
+        R2(config-if)# exit
+        R2(config)# ip route 0.0.0.0 0.0.0.0 loopback 1
+        %Default route without gateway, if not a point-to-point interface, may impact performance
+        R2(config)# router ospf 10
+        R2(config-router)# default-information originate
+        R2(config-router)# end
+        R2#
+
+    
+    # Verifique a rota padrão propagada
+        Você pode verificar as configurações de rota padrão no R2 usando o comando show ip route. Você também pode verificar se R1 e R3 receberam uma rota padrão.
+
+        Observe que a origem da rota em R1 e R3 é O*E2, significando que foi aprendido usando o OSPFv2. O asterisco identifica isso como um bom candidato para a rota padrão. A designação E2 identifica que é uma rota externa. O significado de E1 e E2 está além do escopo deste módulo.
+
+        R2
+            R2# show ip route | begin Gateway
+            Gateway of last resort is 0.0.0.0 to network 0.0.0.0
+            S*    0.0.0.0/0 is directly connected, Loopback1
+                10.0.0.0/8 is variably subnetted, 9 subnets, 3 masks
+            C        10.1.1.4/30 is directly connected, GigabitEthernet0/0/0
+            L        10.1.1.6/32 is directly connected, GigabitEthernet0/0/0
+            C        10.1.1.8/30 is directly connected, GigabitEthernet0/0/1
+            L        10.1.1.9/32 is directly connected, GigabitEthernet0/0/1
+            O        10.1.1.12/30 [110/40] via 10.1.1.10, 00:48:42, GigabitEthernet0/0/1
+                                [110/40] via 10.1.1.5, 00:59:30, GigabitEthernet0/0/0
+            O        10.10.1.0/24 [110/20] via 10.1.1.5, 00:59:30, GigabitEthernet0/0/0
+            C        10.10.2.0/24 is directly connected, Loopback0
+            L        10.10.2.1/32 is directly connected, Loopback0
+            O        10.10.3.0/24 [110/20] via 10.1.1.10, 00:48:42, GigabitEthernet0/0/1
+                64.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+            C        64.100.0.0/30 is directly connected, Loopback1
+            L        64.100.0.1/32 is directly connected, Loopback1
+            R2#
+
+        R1
+            R1# show ip route | begin Gateway
+            Gateway of last resort is 10.1.1.6 to network 0.0.0.0
+            O*E2  0.0.0.0/0 [110/1] via 10.1.1.6, 00:11:08, GigabitEthernet0/0/0
+                10.0.0.0/8 is variably subnetted, 9 subnets, 3 masks
+            C        10.1.1.4/30 is directly connected, GigabitEthernet0/0/0
+            L        10.1.1.5/32 is directly connected, GigabitEthernet0/0/0
+            O        10.1.1.8/30 [110/20] via 10.1.1.6, 00:58:59, GigabitEthernet0/0/0
+            C        10.1.1.12/30 is directly connected, GigabitEthernet0/0/1
+            L        10.1.1.14/32 is directly connected, GigabitEthernet0/0/1
+            C        10.10.1.0/24 is directly connected, Loopback0
+            L        10.10.1.1/32 is directly connected, Loopback0
+            O        10.10.2.0/24 [110/20] via 10.1.1.6, 00:58:59, GigabitEthernet0/0/0
+            O        10.10.3.0/24 [110/30] via 10.1.1.6, 00:48:11, GigabitEthernet0/0/0
+            R1#  
+
+        R3
+            R3# show ip route | begin Gateway
+            Gateway of last resort is 10.1.1.9 to network 0.0.0.0
+            O*E2  0.0.0.0/0 [110/1] via 10.1.1.9, 00:12:04, GigabitEthernet0/0/1
+                10.0.0.0/8 is variably subnetted, 9 subnets, 3 masks
+            O        10.1.1.4/30 [110/20] via 10.1.1.9, 00:49:08, GigabitEthernet0/0/1
+            C        10.1.1.8/30 is directly connected, GigabitEthernet0/0/1
+            L        10.1.1.10/32 is directly connected, GigabitEthernet0/0/1
+            C        10.1.1.12/30 is directly connected, GigabitEthernet0/0/0
+            L        10.1.1.13/32 is directly connected, GigabitEthernet0/0/0
+            O        10.10.1.0/24 [110/30] via 10.1.1.9, 00:49:08, GigabitEthernet0/0/1
+            O        10.10.2.0/24 [110/20] via 10.1.1.9, 00:49:08, GigabitEthernet0/0/1
+            C        10.10.3.0/24 is directly connected, Loopback0
+            L        10.10.3.1/32 is directly connected, Loopback0
+            R3#  
