@@ -927,3 +927,164 @@
             RA# debug ip ospf adj
 
             RB# debug ip ospf adj
+
+
+    # Verificar os vizinhos do OSPF
+        Se você configurou o OSPFv2 de área única, precisará verificar suas configurações. Este tópico detalha os muitos comandos que você pode usar para verificar o OSPF.
+
+        Como você sabe, os dois comandos a seguir são particularmente úteis para verificar o roteamento:
+
+        show ip interface brief - Isso verifica se as interfaces desejadas estão ativas com endereçamento IP correto.
+        show ip route - Isso verifica se a tabela de roteamento contém todas as rotas esperadas.
+        Comandos adicionais para determinar se o OSPF está operando conforme esperado incluem o seguinte:
+
+        show ip ospf neighbor
+        show ip protocols
+        show ip ospf
+        show ip ospf interface
+        A figura mostra a topologia de referência OSPF usada para demonstrar esses comandos.
+
+    # Topologia de Referência de OSPFv2
+        ![Alt text](image-24.png)
+
+        Use o comando show ip ospf neighbor para verificar se o roteador formou uma adjacência com os roteadores vizinhos. Se a ID do roteador vizinho não for exibido, ou se não for mostrado em um estado FULL, os dois roteadores não terão formado uma adjacência OSPFv2.
+
+        Se dois roteadores não estabelecem a adjacência, não há troca de informações de link-state. LSDBs incompletos podem causar árvores SPF e tabelas de roteamento imprecisas. As rotas até as redes destino podem não existir ou podem não ser o melhor caminho.
+
+        Observação: Um roteador que não DR ou BDR que tenha uma relação de vizinho com outro roteador não-DR ou BDR exibirá uma adjacência bidirecional em vez de cheia.
+
+        A saída de comando a seguir exibe a tabela de vizinho de R1.
+
+        R1# show ip ospf neighbor 
+        Neighbor ID     Pri   State           Dead Time   Address         Interface
+        3.3.3.3           0   FULL/  -        00:00:19    10.1.1.13       GigabitEthernet0/0/1
+        2.2.2.2           0   FULL/  -        00:00:18    10.1.1.6        GigabitEthernet0/0/0
+        R1#
+        Para cada vizinho, este comando exibe o seguinte:
+
+        Neighbor ID - Este é o ID do roteador vizinho.
+        Pri - Essa é a prioridade OSPFv2 da interface. Esse valor é usado na escolha de DR e BDR.
+        State - Este é o estado OSPFv2 da interface. O estado FULL significa que o roteador e seu vizinho têm LSDBs de OSPFv2 idênticos. Em redes multiacesso, como Ethernet, dois roteadores adjacentes podem ter seus estados exibidos como 2WAY. O mapeamento indica que não são necessários DR e BDR devido ao tipo de rede.
+        Dead Time - Essa é a quantidade de tempo restante que o roteador espera para receber um pacote OSPFv2 Hello do vizinho antes de declarar o vizinho inativo. Esse valor é redefinido quando a interface recebe um pacote Hello.
+        Address - Este é o endereço IPv4 da interface do vizinho ao qual este roteador está diretamente conectado.
+        Interface - Essa é a interface na qual esse roteador formou adjacência com o vizinho.
+        Dois roteadores podem não formar uma adjacência OSPFv2 se o seguinte ocorrer:
+
+        As máscaras de sub-rede não correspondem, o que resulta em roteadores em redes separadas.
+        O OSPFv2 Hello ou Dead Timers não coincidem.
+        Os tipos de rede OSPFv2 não correspondem.
+        Há um comando de rede OSPFv2 ausente ou incorreto.
+
+    # Verificar configurações do protocolo do OSPF
+        O comando show ip protocols é uma maneira rápida de verificar informações vitais da configuração do OSPF, conforme mostrado na seguinte saída de comando. Isso inclui o ID do processo OSPFv2, o ID do roteador, interfaces explicitamente configuradas para anunciar rotas OSPF, os vizinhos dos quais o roteador está recebendo atualizações e a distância administrativa padrão, que é 110 para OSPF.
+
+        R1# show ip protocols
+        *** IP Routing is NSF aware ***
+        (output omitted)
+        Routing Protocol is "ospf 10"
+        Outgoing update filter list for all interfaces is not set
+        Incoming update filter list for all interfaces is not set
+        Router ID 1.1.1.1
+        Number of areas in this router is 1. 1 normal 0 stub 0 nssa
+        Maximum path: 4
+        Routing for Networks:
+        Routing on Interfaces Configured Explicitly (Area 0):
+            Loopback0
+            GigabitEthernet0/0/1
+            GigabitEthernet0/0/0
+        Routing Information Sources:
+            Gateway         Distance      Last Update
+            3.3.3.3              110      00:09:30
+            2.2.2.2              110      00:09:58
+        Distance: (default is 110)
+        R1#
+
+    # Verificar informações de processo do OSPF
+        O comando show ip ospf também pode ser usado para examinar o ID do processo OSPFv2 e o ID do roteador, conforme mostrado na saída do comando a seguir. Este comando exibe as informações da área OSPFv2 e a última vez que o algoritmo SPF foi executado.
+
+        R1# show ip ospf      
+        Routing Process "ospf 10" with ID 1.1.1.1
+        Start time: 00:01:47.390, Time elapsed: 00:12:32.320
+        Supports only single TOS(TOS0) routes
+        Supports opaque LSA
+        Supports Link-local Signaling (LLS)
+        Supports area transit capability
+        Supports NSSA (compatible with RFC 3101)
+        Supports Database Exchange Summary List Optimization (RFC 5243)
+        Event-log enabled, Maximum number of events: 1000, Mode: cyclic
+        Router is not originating router-LSAs with maximum metric
+        Initial SPF schedule delay 5000 msecs
+        Minimum hold time between two consecutive SPFs 10000 msecs
+        Maximum wait time between two consecutive SPFs 10000 msecs
+        Incremental-SPF disabled
+        Minimum LSA interval 5 secs
+        Minimum LSA arrival 1000 msecs
+        LSA group pacing timer 240 secs
+        Interface flood pacing timer 33 msecs
+        Retransmission pacing timer 66 msecs
+        EXCHANGE/LOADING adjacency limit: initial 300, process maximum 300
+        Number of external LSA 1. Checksum Sum 0x00A1FF
+        Number of opaque AS LSA 0. Checksum Sum 0x000000
+        Number of DCbitless external and opaque AS LSA 0
+        Number of DoNotAge external and opaque AS LSA 0
+        Number of areas in this router is 1. 1 normal 0 stub 0 nssa
+        Number of areas transit capable is 0
+        External flood list length 0
+        IETF NSF helper support enabled
+        Cisco NSF helper support enabled
+        Reference bandwidth unit is 10000 mbps
+            Area BACKBONE(0)
+                Number of interfaces in this area is 3
+            Area has no authentication
+            SPF algorithm last executed 00:11:31.231 ago
+            SPF algorithm executed 4 times
+            Area ranges are
+            Number of LSA 3. Checksum Sum 0x00E77E
+            Number of opaque link LSA 0. Checksum Sum 0x000000
+            Number of DCbitless LSA 0
+            Number of indication LSA 0
+            Number of DoNotAge LSA 0
+            Flood list length 0
+        R1#
+
+    
+    # Verificar configurações interface do OSPF
+        O comando show ip ospf interface fornece uma lista detalhada para todas as interfaces ativadas para OSPFv2. Especifique uma interface para exibir as configurações apenas dessa interface, conforme mostrado na saída a seguir para Gigabit Ethernet 0/0/0. Esse comando mostra o ID do processo, o ID do roteador local, o tipo de rede, o custo do OSPF, informações de DR e BDR em links multiacesso (não mostrados) e vizinhos adjacentes.
+
+        R1# show ip ospf interface GigabitEthernet 0/0/0
+        GigabitEthernet0/0/0 is up, line protocol is up 
+        Internet Address 10.1.1.5/30, Area 0, Attached via Interface Enable
+        Process ID 10, Router ID 1.1.1.1, Network Type POINT_TO_POINT, Cost: 10
+        Topology-MTID    Cost    Disabled    Shutdown      Topology Name
+                0           10        no          no            Base
+        Enabled by interface config, including secondary ip addresses
+        Transmit Delay is 1 sec, State POINT_TO_POINT
+        Timer intervals configured, Hello 5, Dead 20, Wait 20, Retransmit 5
+            oob-resync timeout 40
+            Hello due in 00:00:01
+        Supports Link-local Signaling (LLS)
+        Cisco NSF helper support enabled
+        IETF NSF helper support enabled
+        Index 1/2/2, flood queue length 0
+        Next 0x0(0)/0x0(0)/0x0(0)
+        Last flood scan length is 1, maximum is 1
+        Last flood scan time is 0 msec, maximum is 0 msec
+        Neighbor Count is 1, Adjacent neighbor count is 1 
+            Adjacent with neighbor 2.2.2.2
+        Suppress hello for 0 neighbor(s)
+        R1#
+        Para obter um resumo rápido das interfaces habilitadas para OSPFv2, use o comando show ip ospf interface brief, como mostrado na saída do comando a seguir. Este comando é útil para ver informações importantes, incluindo o seguinte:
+
+        Interfaces estão participando do OSPF
+        Redes que estão sendo anunciadas (Endereço IP/Máscara)
+        Custo de cada link
+        Estado da rede
+        Número de vizinhos em cada link
+        R1# show ip ospf interface brief
+        Interface    PID   Area            IP Address/Mask    Cost  State Nbrs F/C
+        Lo0          10    0               10.10.1.1/24       10    P2P   0/0
+        Gi0/0/1      10    0               10.1.1.14/30       30    P2P   1/1
+        Gi0/0/0      10    0               10.1.1.5/30        10    P2P   1/1
+        R1#
+
+    
