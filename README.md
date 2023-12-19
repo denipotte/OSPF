@@ -10,7 +10,7 @@
             Link-State Request
             Link-State Update
             Pacote de confirmação de link-state
-            ![Alt text](image.png)
+            ![Alt text]([image.png](https://github.com/denipotte/OSPF/blob/main/image-1.png))
 
         As mensagens OSPF são usadas para criar e manter três bancos de dados OSPF, da seguinte forma:
 
